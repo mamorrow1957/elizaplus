@@ -1,0 +1,255 @@
+# ELIZA Web Implementation — Specification
+
+## Overview
+
+A browser-based implementation of the ELIZA natural language processing program, originally created by Joseph Weizenbaum at MIT in 1966. This implementation uses the DOCTOR script, which simulates a Rogerian psychotherapist, and runs entirely in the client with no server-side dependencies.
+
+---
+
+## Functional Requirements
+
+### Conversation Engine
+
+1. The program shall accept free-text input from the user and produce a plausible response in the style of the DOCTOR script.
+2. The program shall match user input against an ordered set of pattern rules, selecting the highest-weight matching rule.
+3. Each rule shall contain one or more response templates that are cycled through in order, so the same response is not repeated on consecutive matches of the same rule.
+4. If no rule matches, the program shall select a fallback response from a dedicated fallback list, also cycled in order.
+5. The program shall pre-process input by normalising common synonyms and contractions to canonical forms before pattern matching (e.g. `"cant"` → `"can't"`, `"dreamt"` → `"dreamed"`).
+6. Captured substrings from pattern matches shall undergo pronoun reflection before being substituted into response templates (e.g. `"I"` → `"you"`, `"my"` → `"your"`).
+7. The program shall produce an opening greeting from ELIZA on page load without any user input.
+
+### Pattern Rules
+
+Each rule has three attributes:
+
+| Attribute   | Type             | Description                                              |
+|-------------|------------------|----------------------------------------------------------|
+| `weight`    | integer          | Priority; higher values are matched first                |
+| `pattern`   | regular expression | Matched (case-insensitively) against the processed input |
+| `responses` | string array     | One or more response templates, cycled in order          |
+
+Response templates may contain `$1`, `$2`, etc. as placeholders for reflected captured groups from the pattern match.
+
+#### Required Keyword Categories
+
+The rule set shall include patterns covering at minimum the following topics:
+
+- Greetings (`hello`, `hi`, `hey`)
+- Expressions of need (`I need …`)
+- Expressions of inability (`I can't …`, `why can't I …`)
+- Self-description (`I am …`, `I'm …`)
+- Feelings (`I feel …`, `I felt …`)
+- Thought (`I think …`)
+- Desire (`I want …`, `I wish …`)
+- Family members (`mother`, `father`, `sister`, `brother`, `family`, `child`)
+- Dreams (`dream`, `dreamed`)
+- Memory (`remember`, `recall`, `forget`)
+- Computers and machines (`computer`, `machine`, `robot`, `ai`, `bot`)
+- Conditional statements (`if …`, `because …`, `perhaps …`)
+- Possessives (`my …`)
+- Affirmations and negations (`yes`, `no`)
+- Absolute quantifiers (`always`, `everybody`, `never`, `nobody`, `all`)
+- Similarity (`alike`)
+- Direct questions addressed to ELIZA (`are you …?`, `why don't you …?`)
+- General questions (`what …?`, `how …?`)
+- Apologies (`sorry`)
+- User statements about ELIZA (`you …`)
+- Questions (any input ending with `?`)
+
+### Synonym Normalisation
+
+The following substitutions shall be applied as whole-word replacements before pattern matching:
+
+| Input word    | Normalised form |
+|---------------|-----------------|
+| `dont`        | `don't`         |
+| `cant`        | `can't`         |
+| `wont`        | `won't`         |
+| `recollect`   | `remember`      |
+| `recall`      | `remember`      |
+| `dreamt`      | `dreamed`       |
+| `dreams`      | `dream`         |
+| `maybe`       | `perhaps`       |
+| `certainly`   | `yes`           |
+| `machine`     | `computer`      |
+| `machines`    | `computer`      |
+| `computers`   | `computer`      |
+| `were`        | `was`           |
+| `you're`      | `you are`       |
+| `i'm`         | `i am`          |
+| `same`        | `alike`         |
+| `identical`   | `alike`         |
+| `equivalent`  | `alike`         |
+
+### Pronoun Reflection
+
+The following substitutions shall be applied word-by-word to captured groups before insertion into response templates:
+
+| Captured word | Reflected word |
+|---------------|----------------|
+| `am`          | `are`          |
+| `was`         | `were`         |
+| `i`           | `you`          |
+| `i'd`         | `you would`    |
+| `i've`        | `you have`     |
+| `i'll`        | `you will`     |
+| `my`          | `your`         |
+| `me`          | `you`          |
+| `myself`      | `yourself`     |
+| `you`         | `I`            |
+| `your`        | `my`           |
+| `yours`       | `mine`         |
+| `you've`      | `I have`       |
+| `you'll`      | `I will`       |
+| `you'd`       | `I would`      |
+| `you're`      | `I am`         |
+| `are`         | `am`           |
+| `were`        | `was`          |
+
+---
+
+## User Interface Requirements
+
+### Layout
+
+- Single-page application with no navigation.
+- A fixed header displaying the program name ("ELIZA") and subtitle ("DOCTOR Script — MIT Artificial Intelligence Laboratory, 1966").
+- A scrollable chat window occupying the remaining vertical space.
+- A fixed input area at the bottom containing a text field and a send button.
+- A small footer centred below the input area reading `Last updated <date and time>` (see *Last-Updated Footer*).
+
+### Chat Window
+
+- Messages from ELIZA and messages from the user shall be visually distinguished by colour and label.
+- Each message shall display a speaker label (`ELIZA` or `YOU`) above the message text.
+- New messages shall cause the chat window to scroll to the bottom automatically.
+- All user-supplied text shall be HTML-escaped before rendering to prevent injection.
+
+### Input Area
+
+- The text field shall accept free-form text.
+- Pressing **Enter** or clicking the **Send** button shall submit the current input.
+- The input field shall be cleared after submission.
+- The input field shall receive focus on page load.
+
+### Last-Updated Footer
+
+- A `<footer id="last-updated">` sits centred below the input area, in small, dim type.
+- It shows when the deployed code last changed, e.g. `Last updated Aug 16, 2026, 1:26 PM EDT`, always in Eastern time (EDT in summer, EST in winter).
+- The value comes from `last-updated.js`, which `scripts/deploy.sh` writes into `/var/www/html` after the rsync. It contains `window.ELIZA_LAST_UPDATED = "<ISO 8601 commit time>"` and uses the commit time of the checked-out `HEAD` (so re-running a deploy with no code change does not move the date).
+- `last-updated.js` is not stored in git (it is in `.gitignore`). When it is missing, or the value is not a valid date, the footer is empty and hidden. Local runs and the Playwright tests therefore show no footer unless a test injects `window.ELIZA_LAST_UPDATED`.
+
+### Response Timing
+
+- ELIZA's responses shall be delayed by a randomised interval in the range **350–650 ms** after the user submits input, to simulate natural thinking time.
+
+### Visual Design
+
+- Retro terminal aesthetic: dark background (`#0a0a0a`), phosphor-green foreground (`#33ff33`), monospace font.
+- ELIZA messages: bright green (`#33ff33`).
+- User messages: lighter green (`#aaffaa`).
+- The Send button shall invert colours on hover.
+
+### Mobile & Tablet Viewport
+
+- The input area shall remain visible within the viewport on mobile-sized screens in both portrait (375×812) and landscape (812×375) orientations, and on tablet-sized screens in both portrait (768×1024) and landscape (1024×768) orientations.
+- The layout shall use a dynamic viewport height (`100dvh`) so that the browser chrome (address bar, navigation bar) on iOS Safari is accounted for and the input area is never pushed below the fold.
+- The `html` element shall use `-webkit-fill-available` height so that older versions of iOS Safari also constrain the layout correctly.
+- The chat window shall have `min-height: 0` so it can shrink within the flex column without forcing the input area off-screen.
+- The chat window shall use `-webkit-overflow-scrolling: touch` for smooth momentum scrolling on iOS.
+
+---
+
+## Technical Requirements
+
+- Implemented as two static files (`index.html` and `eliza.js`) with no runtime dependencies.
+- All logic (pattern matching, synonym normalisation, pronoun reflection, UI) shall be implemented in vanilla JavaScript in `eliza.js`, loaded as an external script by `index.html`.
+- The application requires no server-side code, build tools, or package manager to run — open `index.html` directly in any browser.
+- Running the test suite requires Node.js and npm (`npm install && npm test`).
+- Compatible with all modern browsers (Chrome, Firefox, Safari, Edge).
+
+---
+
+## Testing
+
+### Framework
+
+Tests are written with [Playwright](https://playwright.dev/) and run against the `index.html` file directly via a `file://` URL — no dev server required. The test runner is Chromium headless.
+
+### Running Tests
+
+```bash
+npm install
+npm test
+```
+
+### Continuous Integration
+
+Tests run automatically on GitLab CI on every push to `main` or `dev`, and on every merge request targeting `main`. The pipeline installs Chromium inside a `node:24` Docker container, runs the full test suite, and uploads the HTML report as a downloadable artifact (14-day retention).
+
+### Deployment
+
+A deploy job runs automatically after tests pass on `main`. It runs on a self-hosted GitLab shell runner installed on the web server. The job pulls the latest code and runs `scripts/deploy.sh`, which backs up `/var/www/html` (to `/var/www/html.backup.<date>_<time>`; only the 3 most recent backups are kept and older ones are deleted), rsyncs the repo into it (excluding dev-only files such as tests, node_modules, and config files), then writes `last-updated.js` with the commit time of the deployed code for the page footer, and finally stamps the commit into the script URLs of the deployed `index.html` (`eliza.js?v=<commit>`, `last-updated.js?v=<commit>`) so Cloudflare and browsers fetch fresh copies after every deploy. The server's nginx also sends `Cache-Control: no-cache` for `.js` and `.html` files (server configuration in `/etc/nginx/sites-available/default`, not stored in this repository). The site is served through Cloudflare, which caches static files and tells browsers to keep them for up to 4 hours; if a change still looks missing, hard-reload the page and, if needed, purge the file in the Cloudflare dashboard (Caching → Configuration → Custom Purge).
+
+### Test Suite Overview
+
+84 tests are organised into 10 groups:
+
+| Group | Tests | Description |
+|---|---|---|
+| Layout & static content | 10 | Page title, header text and subtitle, chat window, input field, Send button, input area within viewport in portrait and landscape tablet and mobile sizes |
+| Initialization | 4 | Opening greeting fires on load, correct text, ELIZA speaker label, input focused |
+| Input & UI interaction | 10 | Enter key, Send button, input cleared after submit, user message text/label, multi-turn replies, empty and whitespace-only input rejected, chat window auto-scrolls to bottom, double-click Send guard |
+| Pattern matching | 22 | Every keyword category: greetings, `I need/am/feel/think/want/can't/wish`, `because`, `sorry`, `mother`, `father`, `dream`, `computer`, `remember`, `yes`, `no`, `always`, `?`, `if`, `my`, higher-weight rule wins on multi-rule match |
+| Synonym normalisation | 5 | `recollect→remember`, `machine→computer`, `maybe→perhaps`, `dreamt→dream`, `i'm→i am` fires the `I am` rule |
+| Pronoun reflection | 3 | `I→you`, `my→your`, `me→you` in captured phrases |
+| Response cycling | 3 | Different reply on repeated input, full 4-response cycle wrap, fallback list cycling |
+| Edge cases | 10 | `<script>` XSS, HTML `<b>` injection, 500-character input, all-caps input, punctuation-only input, rapid-fire messages, numeric input, ampersand escaping |
+| Additional edge cases | 8 | Emoji / Unicode, `<`/`>` without tags, backtick injection, single/double quotes, embedded newlines, leading/trailing whitespace trim, `null` literal, `undefined` literal |
+| Last-updated footer | 9 | Hidden with no or invalid timestamp, Eastern time in summer (EDT) and winter (EST), ISO timestamp with UTC offset, centred small type below the input, no overlap with the input or Send button on a phone-sized screen, script tags keep the form deploy.sh stamps, chatting still works |
+
+### Edge Case Coverage
+
+- **XSS prevention** — `<script>` tags in user input are HTML-escaped; no script executes and no global is set.
+- **HTML injection** — `<b>` tags appear as literal text; no DOM elements are created inside message bubbles.
+- **`<`/`>` without tags** — angle brackets in plain text (e.g. `score < 10`) are escaped; no spurious child elements are created.
+- **Backtick injection** — backtick characters render as plain text.
+- **Quote characters** — single and double quotes render correctly in the user bubble.
+- **Embedded newlines** — input containing `\n` is handled gracefully and produces a response.
+- **Long input** — inputs exceeding 500 characters are handled gracefully and produce a response.
+- **Case insensitivity** — all-caps input matches the same rules as lowercase.
+- **Empty / whitespace input** — submitting blank input adds no messages to the chat.
+- **Leading/trailing whitespace** — trimmed before matching; user bubble shows the trimmed text.
+- **Rapid-fire messages** — three messages sent in immediate succession each receive a response.
+- **Double-submit guard** — clicking Send twice rapidly produces only one user message, because the input is cleared after the first click.
+- **Auto-scroll** — the chat window scrolls to the bottom after each new message.
+- **Response cycling** — repeated identical input cycles through the rule's response list and wraps back to the first after exhaustion.
+- **Fallback cycling** — unrecognised input advances through the fallback list rather than repeating.
+- **Emoji / Unicode** — non-ASCII characters render correctly in the user bubble and produce a response.
+- **`null` / `undefined` literals** — these strings are handled without errors and produce a fallback response.
+- **Footer timestamp** — a missing or invalid `ELIZA_LAST_UPDATED` hides the footer instead of showing `Invalid Date`.
+
+---
+
+## File Structure
+
+```
+eliza/
+├── index.html               # Application shell (HTML + CSS)
+├── eliza.js                 # ELIZA engine and UI logic
+├── eliza-spec.md            # This document
+├── LICENSE
+├── playwright.config.js
+├── package.json
+├── scripts/
+│   └── deploy.sh            # Deployment script (backup, rsync to /var/www/html, last-updated.js, version stamp)
+├── .gitlab-ci.yml           # GitLab CI/CD pipeline
+└── tests/
+    └── eliza.spec.js        # Playwright test suite (84 tests)
+```
+
+---
+
+## References
+
+- Weizenbaum, J. (1966). ELIZA — A computer program for the study of natural language communication between man and machine. *Communications of the ACM*, 9(1), 36–45.

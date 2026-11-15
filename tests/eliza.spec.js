@@ -1,0 +1,1030 @@
+// @ts-check
+const { test, expect } = require("@playwright/test");
+const path = require("path");
+
+const PAGE_URL = "file://" + path.resolve(__dirname, "..", "index.html");
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Navigate to a fresh ELIZA page and wait for the opening greeting. */
+async function loadPage(page) {
+  await page.goto(PAGE_URL);
+  // Wait for opening greeting (delayed ~400 ms on load)
+  await expect(page.locator(".message.eliza")).toHaveCount(1, { timeout: 8000 });
+}
+
+/**
+ * Type a message, submit via Enter, and wait for ELIZA's next reply.
+ * Returns the text of the new ELIZA message.
+ */
+async function chat(page, text) {
+  const elizaBefore = await page.locator(".message.eliza").count();
+  await page.fill("#user-input", text);
+  await page.press("#user-input", "Enter");
+  await expect(page.locator(".message.eliza")).toHaveCount(elizaBefore + 1, {
+    timeout: 8000,
+  });
+  return page.locator(".message.eliza .text").last().textContent();
+}
+
+/**
+ * Same as chat() but submits via the Send button instead of Enter.
+ */
+async function chatViaButton(page, text) {
+  const elizaBefore = await page.locator(".message.eliza").count();
+  await page.fill("#user-input", text);
+  await page.click("#send-btn");
+  await expect(page.locator(".message.eliza")).toHaveCount(elizaBefore + 1, {
+    timeout: 8000,
+  });
+  return page.locator(".message.eliza .text").last().textContent();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 1. Layout & Static Content
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe("Layout & static content", () => {
+  test("page title is 'ELIZA — DOCTOR Script'", async ({ page }) => {
+    await page.goto(PAGE_URL);
+    await expect(page).toHaveTitle("Elizaplus — DOCTOR Script");
+  });
+
+  test("header h1 displays 'E L I Z A'", async ({ page }) => {
+    await page.goto(PAGE_URL);
+    await expect(page.locator("header h1")).toHaveText("E L I Z A");
+  });
+
+  test("header subtitle references the DOCTOR Script and MIT", async ({ page }) => {
+    await page.goto(PAGE_URL);
+    const subtitle = page.locator("header p");
+    await expect(subtitle).toContainText("DOCTOR Script");
+    await expect(subtitle).toContainText("1966");
+  });
+
+  test("chat window is visible", async ({ page }) => {
+    await page.goto(PAGE_URL);
+    await expect(page.locator("#chat-window")).toBeVisible();
+  });
+
+  test("input field is visible with correct placeholder", async ({ page }) => {
+    await page.goto(PAGE_URL);
+    const input = page.locator("#user-input");
+    await expect(input).toBeVisible();
+    await expect(input).toHaveAttribute(
+      "placeholder",
+      "Tell me what's on your mind..."
+    );
+  });
+
+  test("Send button is visible and labelled SEND", async ({ page }) => {
+    await page.goto(PAGE_URL);
+    const btn = page.locator("#send-btn");
+    await expect(btn).toBeVisible();
+    await expect(btn).toHaveText("SEND");
+  });
+
+  test("input area is within viewport in portrait tablet size (768x1024)", async ({ page }) => {
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await page.goto(PAGE_URL);
+    const inputArea = page.locator("#input-area");
+    await expect(inputArea).toBeVisible();
+    const box = await inputArea.boundingBox();
+    expect(box).not.toBeNull();
+    // Bottom edge of input area must be within the viewport height
+    expect(box.y + box.height).toBeLessThanOrEqual(1024);
+  });
+
+  test("input area is within viewport in landscape tablet size (1024x768)", async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await page.goto(PAGE_URL);
+    const inputArea = page.locator("#input-area");
+    await expect(inputArea).toBeVisible();
+    const box = await inputArea.boundingBox();
+    expect(box).not.toBeNull();
+    // Bottom edge of input area must be within the viewport height
+    expect(box.y + box.height).toBeLessThanOrEqual(768);
+  });
+
+  test("input area is within viewport in portrait mobile size (375x812)", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto(PAGE_URL);
+    const inputArea = page.locator("#input-area");
+    await expect(inputArea).toBeVisible();
+    const box = await inputArea.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box.y + box.height).toBeLessThanOrEqual(812);
+  });
+
+  test("input area is within viewport in landscape mobile size (812x375)", async ({ page }) => {
+    await page.setViewportSize({ width: 812, height: 375 });
+    await page.goto(PAGE_URL);
+    const inputArea = page.locator("#input-area");
+    await expect(inputArea).toBeVisible();
+    const box = await inputArea.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box.y + box.height).toBeLessThanOrEqual(375);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. Initialization
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe("Initialization", () => {
+  test("ELIZA sends an opening greeting automatically on load", async ({ page }) => {
+    await page.goto(PAGE_URL);
+    await expect(page.locator(".message.eliza")).toHaveCount(1, { timeout: 8000 });
+  });
+
+  test("opening greeting text is the classic DOCTOR welcome", async ({ page }) => {
+    await loadPage(page);
+    const greeting = await page.locator(".message.eliza .text").first().textContent();
+    expect(greeting).toBe("How do you do. Please tell me your problem.");
+  });
+
+  test("opening greeting speaker label is 'ELIZA'", async ({ page }) => {
+    await loadPage(page);
+    await expect(page.locator(".message.eliza .speaker").first()).toHaveText("ELIZA");
+  });
+
+  test("input field has focus on load", async ({ page }) => {
+    await loadPage(page);
+    await expect(page.locator("#user-input")).toBeFocused();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. Input & UI Interaction
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe("Input & UI interaction", () => {
+  test("pressing Enter submits the message", async ({ page }) => {
+    await loadPage(page);
+    await chat(page, "hello");
+    // One user message should now exist
+    await expect(page.locator(".message.user")).toHaveCount(1);
+  });
+
+  test("clicking Send button submits the message", async ({ page }) => {
+    await loadPage(page);
+    await chatViaButton(page, "hello");
+    await expect(page.locator(".message.user")).toHaveCount(1);
+  });
+
+  test("input field is cleared after submission", async ({ page }) => {
+    await loadPage(page);
+    await page.fill("#user-input", "hello");
+    await page.press("#user-input", "Enter");
+    await expect(page.locator("#user-input")).toHaveValue("");
+  });
+
+  test("user message appears in chat with correct text", async ({ page }) => {
+    await loadPage(page);
+    await chat(page, "hello there");
+    await expect(page.locator(".message.user .text").first()).toHaveText("hello there");
+  });
+
+  test("user message has 'YOU' speaker label", async ({ page }) => {
+    await loadPage(page);
+    await chat(page, "hello");
+    await expect(page.locator(".message.user .speaker").first()).toHaveText("YOU");
+  });
+
+  test("ELIZA replies after every user message", async ({ page }) => {
+    await loadPage(page);
+    await chat(page, "hello");
+    await chat(page, "I feel sad");
+    // 1 greeting + 2 replies = 3 ELIZA messages
+    await expect(page.locator(".message.eliza")).toHaveCount(3);
+  });
+
+  test("empty input does not add any message", async ({ page }) => {
+    await loadPage(page);
+    const usersBefore = await page.locator(".message.user").count();
+    const elizaBefore = await page.locator(".message.eliza").count();
+    await page.fill("#user-input", "");
+    await page.press("#user-input", "Enter");
+    // Brief pause to confirm nothing was added
+    await page.waitForTimeout(800);
+    expect(await page.locator(".message.user").count()).toBe(usersBefore);
+    expect(await page.locator(".message.eliza").count()).toBe(elizaBefore);
+  });
+
+  test("whitespace-only input does not add any message", async ({ page }) => {
+    await loadPage(page);
+    const elizaBefore = await page.locator(".message.eliza").count();
+    await page.fill("#user-input", "   ");
+    await page.press("#user-input", "Enter");
+    await page.waitForTimeout(800);
+    expect(await page.locator(".message.eliza").count()).toBe(elizaBefore);
+  });
+
+  test("chat window scrolls to bottom after new messages are added", async ({ page }) => {
+    await loadPage(page);
+    // Send enough messages to push content beyond the visible area
+    for (let i = 0; i < 6; i++) {
+      await chat(page, "I feel very sad and I do not know what to do about it");
+    }
+    const isAtBottom = await page.evaluate(() => {
+      const el = document.getElementById("chat-window");
+      return Math.abs(el.scrollHeight - el.clientHeight - el.scrollTop) < 10;
+    });
+    expect(isAtBottom).toBe(true);
+  });
+
+  test("double-clicking Send does not submit the message twice", async ({ page }) => {
+    await loadPage(page);
+    await page.fill("#user-input", "hello");
+    // Click twice rapidly; after the first click the input is cleared,
+    // so the second click sees empty text and is a no-op
+    await page.click("#send-btn");
+    await page.click("#send-btn");
+    await page.waitForTimeout(800);
+    expect(await page.locator(".message.user").count()).toBe(1);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. Pattern Matching
+// Each test loads a fresh page so rule counters are at 0, making the first
+// response for each rule fully predictable.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe("Pattern matching", () => {
+  test("greeting: 'hello' → first hello response", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "hello");
+    expect(reply).toBe("Hello. How are you feeling today?");
+  });
+
+  test("greeting: 'hi' also triggers the greeting rule", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "hi");
+    // Greeting rule responses (cycled from 0)
+    const valid = [
+      "Hello. How are you feeling today?",
+      "Hi there. Please tell me what's on your mind.",
+      "Hello. How do you do. Please state your problem.",
+    ];
+    expect(valid).toContain(reply);
+  });
+
+  test("'I need X' → asks why user needs the reflected phrase", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "I need some help");
+    expect(reply).toBe("Why do you need some help?");
+  });
+
+  test("'I am X' → first response reflects the predicate", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "I am very anxious");
+    expect(reply).toBe("Did you come to me because you are very anxious?");
+  });
+
+  test("'I feel X' → first response uses the feeling", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "I feel lonely");
+    expect(reply).toBe("Tell me more about feeling lonely.");
+  });
+
+  test("'I think X' → first response questions the thought", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "I think nobody cares");
+    expect(reply).toBe("Do you really think nobody cares?");
+  });
+
+  test("'I want X' → first response asks what it would mean", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "I want to be happy");
+    expect(reply).toBe("What would it mean to you if you got to be happy?");
+  });
+
+  test("'I can't X' → questions the inability", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "I can't stop worrying");
+    expect(reply).toBe("How do you know you can't stop worrying?");
+  });
+
+  test("'because X' → challenges the reason", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "because it hurts");
+    expect(reply).toBe("Is that the real reason?");
+  });
+
+  test("'mother' keyword → asks about mother", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "my mother was strict");
+    // 'my' rule (weight 45) loses to 'mother' rule (weight 75)
+    expect(reply).toBe("Tell me more about your mother.");
+  });
+
+  test("'father' keyword → asks about father", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "my father never listened");
+    expect(reply).toBe("Tell me more about your father.");
+  });
+
+  test("'dream' keyword → asks about the dream", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "I had a dream last night");
+    expect(reply).toBe("What does that dream suggest to you?");
+  });
+
+  test("'computer' keyword → response about computers", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "are you a computer");
+    // 'are you' (weight 85) > 'computer' (weight 70)
+    const valid = [
+      "Why does it matter to you whether I am a computer?",
+      "Would you prefer it if I were not a computer?",
+      "Perhaps you believe I am a computer.",
+      "I may be a computer — what does that mean to you?",
+    ];
+    expect(valid).toContain(reply);
+  });
+
+  test("'remember' keyword → asks about the memory", async ({ page }) => {
+    await loadPage(page);
+    // Avoid words that trigger higher-priority rules (e.g. "child" weight 75 > "remember" weight 55)
+    const reply = await chat(page, "I remember that rainy afternoon");
+    expect(reply).toContain("that rainy afternoon");
+  });
+
+  test("'yes' → affirmation response", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "yes");
+    expect(reply).toBe("You seem quite sure.");
+  });
+
+  test("'no' → negation response", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "no");
+    expect(reply).toBe("Are you saying 'No' just to be negative?");
+  });
+
+  test("'always' → challenges absolute quantifier", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "everyone always ignores me");
+    // 'always' and 'everyone' both match; highest weight first, counter=0
+    expect(reply).toBe("Can you think of a specific example?");
+  });
+
+  test("general question → asks why they asked", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "what should I do?");
+    expect(reply).toBe("Why do you ask?");
+  });
+
+  test("sorry → apologetic response", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "I am sorry about that");
+    // 'sorry' (weight 80) beats 'i am' (weight 90)? No — 'i am' wins
+    // 'i am sorry about that' → matches 'i am (.*)' first (weight 90)
+    expect(reply).toBe("Did you come to me because you are sorry about that?");
+  });
+
+  test("'I wish X' → response about the wish", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "I wish I were happy");
+    expect(reply).toBe("Why do you wish you were happy?");
+  });
+
+  test("'if X' → response questions the conditional", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "if only things were different");
+    expect(reply).toBe("Do you really think it's likely that only things were different?");
+  });
+
+  test("'my X' → asks about the possession", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "my dog died");
+    expect(reply).toBe("Why do you say your dog died?");
+  });
+
+  test("higher-weight rule wins when multiple patterns match", async ({ page }) => {
+    await loadPage(page);
+    // "I think about my mother every day" matches three rules:
+    //   /i think (.*)/  weight 80  ← should win
+    //   /\bmother\b/    weight 75
+    //   /my (.*)/       weight 45
+    const reply = await chat(page, "I think about my mother every day");
+    // i think rule fires; captured "about my mother every day" → reflected "about your mother every day"
+    expect(reply).toBe("Do you really think about your mother every day?");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. Synonym Normalisation
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe("Synonym normalisation", () => {
+  test("'recollect' is treated as 'remember'", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "I recollect that day");
+    // recollect → remember, so remember rule fires
+    const valid = [
+      "Do you often think about that day?",
+      "Does thinking about that day bring anything else to mind?",
+      "What else do you recollect?",
+      "Why do you remember that day just now?",
+      "What in the present situation reminds you of that day?",
+      "What is the connection between me and that day?",
+    ];
+    expect(valid.some((v) => reply && reply.includes(v.split(" ").slice(0, 4).join(" ")))).toBe(true);
+  });
+
+  test("'machine' is treated as 'computer'", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "you are like a machine");
+    // 'you' rule (weight 65) fires, but 'machine'→'computer' hits computer rule (weight 70)
+    // Actually 'you (.*)'  weight 65, 'computer' weight 70 — computer wins
+    const valid = [
+      "Do computers worry you?",
+      "What do you think about machines?",
+      "Why do you bring up computers?",
+      "What do computers mean to you?",
+      "Do you feel threatened by computers?",
+    ];
+    expect(valid).toContain(reply);
+  });
+
+  test("'maybe' is treated as 'perhaps'", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "maybe I was wrong");
+    // maybe → perhaps, triggering 'perhaps (.*)' rule
+    const valid = [
+      "You don't seem very certain.",
+      "Why the uncertainty?",
+      "Can't you be more positive?",
+      "You aren't sure you was wrong?",
+      "Don't you know you was wrong?",
+    ];
+    expect(valid).toContain(reply);
+  });
+
+  test("'dreamt' is treated as 'dreamed' / triggers dream rule", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "I dreamt about flying");
+    const valid = [
+      "What does that dream suggest to you?",
+      "Do you dream often?",
+      "What persons appear in your dreams?",
+      "Don't you believe that dream has something to do with your problem?",
+    ];
+    expect(valid).toContain(reply);
+  });
+
+  test("'i'm' is normalised to 'i am' and fires the 'I am' rule", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "i'm feeling lost");
+    // i'm → i am (synonym), then /i am (.*)/ fires (weight 90)
+    // captured "feeling lost" has no pronouns to reflect
+    expect(reply).toBe("Did you come to me because you are feeling lost?");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. Pronoun Reflection
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe("Pronoun reflection", () => {
+  test("'I' in captured group is reflected to 'you'", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "I need to find myself");
+    // captured: "to find myself" → reflected: "to find yourself"
+    expect(reply).toBe("Why do you need to find yourself?");
+  });
+
+  test("'my' in captured group is reflected to 'your'", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "I feel like my life is falling apart");
+    expect(reply).toBe("Tell me more about feeling like your life is falling apart.");
+  });
+
+  test("'me' in captured group is reflected to 'you'", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "I want someone to help me");
+    expect(reply).toBe("What would it mean to you if you got someone to help you?");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 7. Response Cycling
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe("Response cycling", () => {
+  test("same pattern gives different responses on successive inputs", async ({ page }) => {
+    await loadPage(page);
+    const r1 = await chat(page, "I need rest");
+    const r2 = await chat(page, "I need rest");
+    // Responses cycle, so r1 and r2 should differ
+    expect(r1).not.toBe(r2);
+  });
+
+  test("'I need' cycles through all four responses then repeats", async ({ page }) => {
+    await loadPage(page);
+    const responses = [];
+    for (let i = 0; i < 4; i++) {
+      responses.push(await chat(page, "I need something"));
+    }
+    const fifth = await chat(page, "I need something");
+    // After 4 unique responses the cycle wraps back to the first
+    expect(fifth).toBe(responses[0]);
+  });
+
+  test("fallback cycles when no rule matches", async ({ page }) => {
+    await loadPage(page);
+    const r1 = await chat(page, "xyzzy");
+    const r2 = await chat(page, "xyzzy");
+    // Both are fallback responses; they should be different (counter advances)
+    expect(r1).not.toBe(r2);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 8. Edge Cases
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe("Edge cases", () => {
+  test("XSS: <script> tag in input is escaped, not executed", async ({ page }) => {
+    await loadPage(page);
+    let alertFired = false;
+    page.on("dialog", () => { alertFired = true; });
+
+    await chat(page, "<script>window.__xss=true</script>hello");
+    await page.waitForTimeout(200);
+
+    expect(alertFired).toBe(false);
+    const xss = await page.evaluate(() => window.__xss);
+    expect(xss).toBeUndefined();
+  });
+
+  test("XSS: injected script tag appears as escaped text in user bubble", async ({ page }) => {
+    await loadPage(page);
+    await chat(page, "<script>alert(1)</script>");
+    const userText = await page.locator(".message.user .text").first().textContent();
+    expect(userText).toContain("<script>");   // literal angle brackets, not parsed HTML
+    // The DOM should NOT contain an actual <script> inside .message
+    const scriptTags = await page.locator(".message script").count();
+    expect(scriptTags).toBe(0);
+  });
+
+  test("HTML injection: <b> tag in input is rendered as text, not bold", async ({ page }) => {
+    await loadPage(page);
+    await chat(page, "<b>bold text</b>");
+    const userText = await page.locator(".message.user .text").first().textContent();
+    expect(userText).toContain("<b>bold text</b>");
+    // No actual <b> element inside .message
+    const boldTags = await page.locator(".message.user b").count();
+    expect(boldTags).toBe(0);
+  });
+
+  test("very long input (500 chars) still produces a response", async ({ page }) => {
+    await loadPage(page);
+    const longInput = "I feel " + "very ".repeat(100);
+    const reply = await chat(page, longInput.trim());
+    expect(reply).toBeTruthy();
+    expect((reply || "").length).toBeGreaterThan(0);
+  });
+
+  test("all-caps input still matches patterns (case-insensitive)", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "I FEEL ANGRY");
+    const valid = [
+      "Tell me more about feeling angry.",
+      "Do you often feel angry?",
+      "Do you enjoy feeling angry?",
+      "Of what does feeling angry remind you?",
+    ];
+    expect(valid.some((v) => reply && reply.toLowerCase().includes("feel"))).toBe(true);
+  });
+
+  test("input with only punctuation still produces a fallback response", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "...");
+    expect(reply).toBeTruthy();
+    expect((reply || "").length).toBeGreaterThan(0);
+  });
+
+  test("multiple messages in quick succession each get a response", async ({ page }) => {
+    await loadPage(page);
+    // Fire three messages as fast as possible
+    await page.fill("#user-input", "hello");
+    await page.press("#user-input", "Enter");
+    await page.fill("#user-input", "I feel confused");
+    await page.press("#user-input", "Enter");
+    await page.fill("#user-input", "I need help");
+    await page.press("#user-input", "Enter");
+
+    // Eventually 1 greeting + 3 replies = 4 ELIZA messages
+    await expect(page.locator(".message.eliza")).toHaveCount(4, { timeout: 5000 });
+    await expect(page.locator(".message.user")).toHaveCount(3);
+  });
+
+  test("number-only input still produces a response", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "42");
+    expect(reply).toBeTruthy();
+  });
+
+  test("input containing an ampersand is displayed correctly", async ({ page }) => {
+    await loadPage(page);
+    await chat(page, "my mom & dad argued");
+    const userText = await page.locator(".message.user .text").first().textContent();
+    expect(userText).toContain("&");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 9. Additional Edge Cases
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe("Additional edge cases", () => {
+  test("emoji input renders correctly in the user bubble and produces a response", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "😊 I feel happy");
+    expect(reply).toBeTruthy();
+    const userText = await page.locator(".message.user .text").first().textContent();
+    expect(userText).toContain("😊");
+  });
+
+  test("'<' and '>' without a tag are HTML-escaped in the user bubble", async ({ page }) => {
+    await loadPage(page);
+    await chat(page, "score < 10 > 5");
+    const userText = await page.locator(".message.user .text").first().textContent();
+    expect(userText).toContain("<");
+    expect(userText).toContain(">");
+    // No child elements should have been created inside the text div
+    expect(await page.locator(".message.user .text *").count()).toBe(0);
+  });
+
+  test("backtick characters render as plain text, not interpreted as code", async ({ page }) => {
+    await loadPage(page);
+    await chat(page, "`rm -rf /`");
+    const userText = await page.locator(".message.user .text").first().textContent();
+    expect(userText).toContain("`rm -rf /`");
+  });
+
+  test("single and double quotes in input render correctly", async ({ page }) => {
+    await loadPage(page);
+    await chat(page, `she said "hello" and I said 'goodbye'`);
+    const userText = await page.locator(".message.user .text").first().textContent();
+    expect(userText).toContain('"hello"');
+    expect(userText).toContain("'goodbye'");
+  });
+
+  test("input with an embedded newline is handled gracefully", async ({ page }) => {
+    await loadPage(page);
+    const elizaBefore = await page.locator(".message.eliza").count();
+    // Set value directly to bypass the browser's newline stripping in <input type="text">
+    await page.evaluate(() => {
+      document.getElementById("user-input").value = "I feel\ngood today";
+    });
+    await page.press("#user-input", "Enter");
+    await expect(page.locator(".message.eliza")).toHaveCount(elizaBefore + 1, { timeout: 8000 });
+    const reply = await page.locator(".message.eliza .text").last().textContent();
+    expect(reply).toBeTruthy();
+  });
+
+  test("leading and trailing whitespace is trimmed before matching", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "   hello   ");
+    // Greeting rule fires (not a fallback), confirming the input was trimmed
+    const validGreetings = [
+      "Hello. How are you feeling today?",
+      "Hi there. Please tell me what's on your mind.",
+      "Hello. How do you do. Please state your problem.",
+    ];
+    expect(validGreetings).toContain(reply);
+    // User bubble also shows the trimmed text
+    const userText = await page.locator(".message.user .text").first().textContent();
+    expect(userText).toBe("hello");
+  });
+
+  test("literal string 'null' produces a response", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "null");
+    expect(reply).toBeTruthy();
+    expect((reply || "").length).toBeGreaterThan(0);
+  });
+
+  test("literal string 'undefined' produces a response", async ({ page }) => {
+    await loadPage(page);
+    const reply = await chat(page, "undefined");
+    expect(reply).toBeTruthy();
+    expect((reply || "").length).toBeGreaterThan(0);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 10. Last-updated footer
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe("Last-updated footer", () => {
+  // In production, last-updated.js (written by scripts/deploy.sh) sets
+  // window.ELIZA_LAST_UPDATED. Locally that file is absent, so tests inject the value.
+  async function loadWithStamp(page, value) {
+    await page.addInitScript((v) => {
+      window.ELIZA_LAST_UPDATED = v;
+    }, value);
+    await loadPage(page);
+  }
+
+  test("footer is hidden when there is no timestamp", async ({ page }) => {
+    await loadPage(page);
+    const footer = page.locator("#last-updated");
+    await expect(footer).toHaveText("");
+    await expect(footer).toBeHidden();
+  });
+
+  test("footer shows the last-updated date and time in Eastern time (summer, EDT)", async ({ page }) => {
+    await loadWithStamp(page, "2026-08-16T17:26:00Z");
+    await expect(page.locator("#last-updated")).toHaveText(
+      /^Last updated Aug 16, 2026, 1:26\sPM EDT$/
+    );
+  });
+
+  test("footer shows Eastern standard time in winter (EST)", async ({ page }) => {
+    await loadWithStamp(page, "2026-12-25T15:05:00Z");
+    await expect(page.locator("#last-updated")).toHaveText(
+      /^Last updated Dec 25, 2026, 10:05\sAM EST$/
+    );
+  });
+
+  test("footer accepts an ISO timestamp with a UTC offset", async ({ page }) => {
+    await loadWithStamp(page, "2026-08-16T13:26:00-04:00");
+    await expect(page.locator("#last-updated")).toHaveText(
+      /^Last updated Aug 16, 2026, 1:26\sPM EDT$/
+    );
+  });
+
+  test("an invalid timestamp leaves the footer empty and hidden", async ({ page }) => {
+    await loadWithStamp(page, "not a date");
+    const footer = page.locator("#last-updated");
+    await expect(footer).toHaveText("");
+    await expect(footer).toBeHidden();
+  });
+
+  test("footer is centred, in small type, below the input area", async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await loadWithStamp(page, "2026-08-16T17:26:00Z");
+    const footer = page.locator("#last-updated");
+    await expect(footer).toBeVisible();
+
+    const box = await footer.boundingBox();
+    const inputBox = await page.locator("#input-area").boundingBox();
+    expect(box).not.toBeNull();
+    expect(inputBox).not.toBeNull();
+    // Horizontally centred in the viewport (within 2 px)
+    expect(Math.abs(box.x + box.width / 2 - 1024 / 2)).toBeLessThanOrEqual(2);
+    // Sits below the input area, fully inside the viewport
+    expect(box.y).toBeGreaterThanOrEqual(inputBox.y + inputBox.height - 1);
+    expect(box.y + box.height).toBeLessThanOrEqual(768);
+
+    // Smaller than the input text and centred text alignment
+    const sizes = await page.evaluate(() => ({
+      footer: parseFloat(getComputedStyle(document.getElementById("last-updated")).fontSize),
+      input: parseFloat(getComputedStyle(document.getElementById("user-input")).fontSize),
+      align: getComputedStyle(document.getElementById("last-updated")).textAlign,
+    }));
+    expect(sizes.footer).toBeLessThan(sizes.input);
+    expect(sizes.align).toBe("center");
+  });
+
+  test("footer does not overlap the input or SEND button on a phone-sized screen (375x812)", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await loadWithStamp(page, "2026-08-16T17:26:00Z");
+    const footerBox = await page.locator("#last-updated").boundingBox();
+    const sendBox = await page.locator("#send-btn").boundingBox();
+    const inputBox = await page.locator("#user-input").boundingBox();
+    expect(footerBox).not.toBeNull();
+    expect(footerBox.y).toBeGreaterThanOrEqual(sendBox.y + sendBox.height);
+    expect(footerBox.y).toBeGreaterThanOrEqual(inputBox.y + inputBox.height);
+    expect(footerBox.y + footerBox.height).toBeLessThanOrEqual(812);
+    // Text must not be cut off horizontally
+    expect(footerBox.x).toBeGreaterThanOrEqual(0);
+    expect(footerBox.x + footerBox.width).toBeLessThanOrEqual(375);
+  });
+
+  test("script tags keep the exact form that scripts/deploy.sh stamps with a version", async () => {
+    const fs = require("fs");
+    const html = fs.readFileSync(path.resolve(__dirname, "..", "index.html"), "utf8");
+    const deploy = fs.readFileSync(path.resolve(__dirname, "..", "scripts", "deploy.sh"), "utf8");
+    // deploy.sh rewrites these two tags for cache busting; if the markup changes, the stamp silently stops working
+    expect(html).toContain('<script src="eliza.js"></script>');
+    expect(html).toContain('<script src="last-updated.js"></script>');
+    expect(deploy).toContain("eliza.js?v=");
+    expect(deploy).toContain("last-updated.js?v=");
+  });
+
+  test("chatting still works with the footer shown", async ({ page }) => {
+    await loadWithStamp(page, "2026-08-16T17:26:00Z");
+    const reply = await chat(page, "I am feeling sad");
+    expect(reply.length).toBeGreaterThan(0);
+    await expect(page.locator("#last-updated")).toBeVisible();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 11. Fine print
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe("Fine print", () => {
+  test("fine print is shown at the bottom with the disclaimer, credit and license", async ({ page }) => {
+    await loadPage(page);
+    const fine = page.locator("#fine-print");
+    await expect(fine).toBeVisible();
+    await expect(fine).toContainText("not a therapist");
+    await expect(fine).toContainText("sent to an AI model on a private home server");
+    await expect(fine).toContainText("Joseph Weizenbaum");
+    await expect(fine.getByRole("link", { name: "MIT license" })).toHaveAttribute("href", /\/blob\/main\/LICENSE$/);
+    await expect(fine.getByRole("link", { name: "source on GitHub" })).toHaveAttribute("href", "https://github.com/mamorrow1957/eliza");
+  });
+
+  test("fine print links open in a new tab without leaking the opener", async ({ page }) => {
+    await loadPage(page);
+    for (const link of await page.locator("#fine-print a").all()) {
+      await expect(link).toHaveAttribute("target", "_blank");
+      await expect(link).toHaveAttribute("rel", /noopener/);
+    }
+  });
+
+  test("fine print sits below the last-updated footer and stays on screen on a phone", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.addInitScript(() => { window.ELIZA_LAST_UPDATED = "2026-08-16T17:26:00Z"; });
+    await loadPage(page);
+    const last = await page.locator("#last-updated").boundingBox();
+    const fine = await page.locator("#fine-print").boundingBox();
+    expect(fine.y).toBeGreaterThanOrEqual(last.y + last.height - 1);
+    expect(fine.y + fine.height).toBeLessThanOrEqual(812);
+    expect(fine.x).toBeGreaterThanOrEqual(0);
+    expect(fine.x + fine.width).toBeLessThanOrEqual(375);
+  });
+
+  test("the last-updated footer is still there, and chatting still works", async ({ page }) => {
+    await page.addInitScript(() => { window.ELIZA_LAST_UPDATED = "2026-08-16T17:26:00Z"; });
+    await loadPage(page);
+    await expect(page.locator("#last-updated")).toBeVisible();
+    const reply = await chat(page, "I am feeling sad");
+    expect(reply.length).toBeGreaterThan(0);
+  });
+
+  test("deploy.sh keeps development files out of the published site", async () => {
+    const fs = require("fs");
+    const deploy = fs.readFileSync(path.resolve(__dirname, "..", "scripts", "deploy.sh"), "utf8");
+    for (const name of ["scripts", "deploy", ".gitlab-ci.yml", ".gitignore", ".github", "LICENSE", "node_modules", "tests"]) {
+      expect(deploy).toContain("--exclude='" + name + "'");
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 12. "Plus" in the heading
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe("Heading: Plus", () => {
+  test("Plus is shown in script, same colour as the title, and clear of the final A", async ({ page }) => {
+    await loadPage(page);
+    const plus = page.locator(".title .plus");
+    await expect(plus).toHaveText("Plus");
+    await expect(plus).toHaveAttribute("aria-hidden", "true");
+    await expect(page.locator("header h1")).toHaveAttribute("aria-label", "Elizaplus");
+    const colours = await page.evaluate(() => [
+      getComputedStyle(document.querySelector("header h1")).color,
+      getComputedStyle(document.querySelector(".title .plus")).color,
+    ]);
+    expect(colours[1]).toBe(colours[0]);
+    await page.waitForTimeout(2200); // let the write-in animation finish
+    const h1 = await page.locator("header h1").boundingBox();
+    const p = await plus.boundingBox();
+    expect(p.x).toBeGreaterThanOrEqual(h1.x + h1.width); // starts after the title box, so it never touches the A
+  });
+
+  test("Plus stays on screen on a phone", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await loadPage(page);
+    const p = await page.locator(".title .plus").boundingBox();
+    expect(p.x).toBeGreaterThanOrEqual(0);
+    expect(p.x + p.width).toBeLessThanOrEqual(375);
+  });
+
+  test("with reduced motion there is no write-in animation", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await loadPage(page);
+    const anim = await page.evaluate(() => getComputedStyle(document.querySelector(".title .plus")).animationName);
+    expect(anim).toBe("none");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 13. Inner voice (LLM thoughts under ELIZA replies), against a mocked /api/chat
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe("Inner voice", () => {
+  const MOCK = "http://innervoice.test/api/chat";
+  const CORS = { "access-control-allow-origin": "*", "access-control-allow-headers": "content-type" };
+
+  /** Point the page at a mock endpoint; `handler(route, request)` answers POSTs. Returns the captured request bodies. */
+  async function withMock(page, handler) {
+    const bodies = [];
+    await page.addInitScript((url) => { window.ELIZAPLUS_ENDPOINT = url; }, MOCK);
+    await page.route(MOCK, async (route, request) => {
+      if (request.method() === "OPTIONS") return route.fulfill({ status: 204, headers: CORS });
+      bodies.push(JSON.parse(request.postData() || "{}"));
+      return handler(route, request);
+    });
+    return bodies;
+  }
+  const ok = (text) => (route) => route.fulfill({
+    status: 200, headers: CORS, contentType: "application/json",
+    body: JSON.stringify({ choices: [{ message: { content: text } }] }),
+  });
+
+  test("a thought appears under the ELIZA reply and the classic reply is unchanged", async ({ page }) => {
+    await withMock(page, ok("They think I am listening. I am matching strings."));
+    await loadPage(page);
+    const reply = await chat(page, "I am feeling sad");
+    expect(reply.length).toBeGreaterThan(0);
+    const thought = page.locator(".message.eliza").last().locator(".thought");
+    await expect(thought).toHaveText("They think I am listening. I am matching strings.");
+    await expect(page.locator(".message.eliza").last().locator(".text")).toHaveText(reply);
+  });
+
+  test("the request carries the model, no-thinking flag and the exchange", async ({ page }) => {
+    const bodies = await withMock(page, ok("Hm."));
+    await loadPage(page);
+    await chat(page, "my dog ran away");
+    await expect(page.locator(".thought")).toHaveText("Hm.");
+    expect(bodies.length).toBe(1);
+    expect(bodies[0].model).toBe("google/gemma-4-26b-a4b-qat");
+    expect(bodies[0].reasoning_effort).toBe("none");
+    expect(bodies[0].max_tokens).toBeLessThanOrEqual(120);
+    expect(JSON.stringify(bodies[0].messages)).toContain("my dog ran away");
+  });
+
+  test("HTML in a thought is shown as text, never parsed", async ({ page }) => {
+    await withMock(page, ok('<img src=x onerror="window.__xss=true"> hello'));
+    await loadPage(page);
+    await chat(page, "hi");
+    await expect(page.locator(".thought")).toContainText("<img src=x");
+    expect(await page.locator("#chat-window img").count()).toBe(0);
+    expect(await page.evaluate(() => window.__xss)).toBeUndefined();
+  });
+
+  test("a server error leaves no thought and chatting still works", async ({ page }) => {
+    await withMock(page, (route) => route.fulfill({ status: 500, headers: CORS, body: "boom" }));
+    await loadPage(page);
+    const reply = await chat(page, "I need help");
+    expect(reply.length).toBeGreaterThan(0);
+    await page.waitForTimeout(500);
+    expect(await page.locator(".thought").count()).toBe(0);
+    const reply2 = await chat(page, "I am afraid");
+    expect(reply2.length).toBeGreaterThan(0);
+  });
+
+  test("a 404 switches the inner voice off for good and hides the toggle", async ({ page }) => {
+    const bodies = await withMock(page, (route) => route.fulfill({ status: 404, headers: CORS, body: "nope" }));
+    await loadPage(page);
+    await chat(page, "first");
+    await expect(page.locator("#voice-toggle")).toBeHidden();
+    await chat(page, "second");
+    expect(bodies.length).toBe(1);
+    expect(await page.locator(".thought").count()).toBe(0);
+  });
+
+  test("the toggle turns the inner voice off and on", async ({ page }) => {
+    const bodies = await withMock(page, ok("A thought."));
+    await loadPage(page);
+    const toggle = page.locator("#voice-toggle");
+    await expect(toggle).toHaveText("inner voice: on");
+    await chat(page, "one");
+    await expect(page.locator(".thought")).toHaveCount(1);
+    await toggle.click();
+    await expect(toggle).toHaveText("inner voice: off");
+    await expect(page.locator(".thought").first()).toBeHidden();
+    await chat(page, "two");
+    expect(bodies.length).toBe(1);               // no request while off
+    await toggle.click();
+    await chat(page, "three");
+    await expect(page.locator(".thought")).toHaveCount(2); // the first thought plus the new one
+    expect(bodies.length).toBe(2);
+  });
+
+  test("a slow model never blocks the conversation", async ({ page }) => {
+    await withMock(page, async (route) => { await new Promise(r => setTimeout(r, 4000)); return ok("late")(route); });
+    await loadPage(page);
+    const reply = await chat(page, "hello there");
+    expect(reply.length).toBeGreaterThan(0);               // classic reply is already shown
+    await expect(page.locator(".thought.thinking")).toHaveCount(1);
+  });
+
+  test("a page opened from a file has no inner voice at all", async ({ page }) => {
+    await loadPage(page);
+    await chat(page, "hello");
+    await expect(page.locator("#voice-toggle")).toBeHidden();
+    expect(await page.locator(".thought").count()).toBe(0);
+  });
+});

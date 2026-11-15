@@ -1,0 +1,23 @@
+{
+  "name": "elizaplus",
+  "version": "1.0.0",
+  "description": "Browser-based ELIZA (DOCTOR script) with an optional local-LLM inner voice and responder",
+  "scripts": {
+    "test": "playwright test",
+    "smoke": "playwright test tests/live-smoke.spec.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mamorrow1957/elizaplus.git"
+  },
+  "keywords": [],
+  "author": "Michael Morrow",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mamorrow1957/elizaplus/issues"
+  },
+  "homepage": "https://github.com/mamorrow1957/elizaplus",
+  "devDependencies": {
+    "@playwright/test": "^1.65.1"
+  }
+}
