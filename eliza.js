@@ -517,6 +517,10 @@ function autosizeInput() {
   if (atBottom) chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 userInput.addEventListener("input", autosizeInput);
+// Clicking the padding of the frame (outside the text) still puts the cursor in the box.
+document.getElementById("input-box").addEventListener("mousedown", e => {
+  if (e.target !== userInput) { e.preventDefault(); userInput.focus(); }
+});
 window.addEventListener("resize", autosizeInput);
 autosizeInput();
 

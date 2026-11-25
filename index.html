@@ -164,26 +164,36 @@
       align-items: flex-end; /* SEND stays level with the bottom line while the box grows */
     }
 
-    #user-input {
+    /* The frame carries the border and padding so the padding stays put while the text scrolls inside the
+       textarea (padding on a scrolling textarea scrolls away, which left the last line against the edge). */
+    #input-box {
       flex: 1;
-      background: transparent;
+      min-width: 0;
       border: 1px solid #33ff33;
+      padding: 10px 12px;
+      cursor: text;
+    }
+    #input-box:focus-within { box-shadow: 0 0 8px #33ff3344; }
+
+    /* Auto-growing box: one line at rest, up to 4 lines, then it scrolls inside itself. Height is set from
+       eliza.js (autosizeInput); resize handle off, wrapping on. */
+    #user-input {
+      display: block;
+      width: 100%;
+      background: transparent;
+      border: 0;
+      padding: 0;
       color: #33ff33;
       font-family: inherit;
       font-size: inherit;
-      padding: 10px 12px;
       outline: none;
       caret-color: #33ff33;
-      /* Auto-growing box: one line at rest, up to 4 lines, then it scrolls inside itself.
-         Height is set from eliza.js (autosizeInput); resize handle off, wrapping on. */
       resize: none;
       line-height: 1.4;
       overflow-y: hidden;
-      display: block;
     }
 
     #user-input::placeholder { color: #1a6b1a; }
-    #user-input:focus { box-shadow: 0 0 8px #33ff3344; }
 
     #send-btn {
       background: transparent;
@@ -256,7 +266,7 @@
   <div id="chat-window"></div>
 
   <div id="input-area">
-    <textarea id="user-input" rows="1" enterkeyhint="send" placeholder="Tell me what's on your mind..." autocomplete="off" spellcheck="false"></textarea>
+    <div id="input-box"><textarea id="user-input" rows="1" enterkeyhint="send" placeholder="Tell me what's on your mind..." autocomplete="off" spellcheck="false"></textarea></div>
     <button id="send-btn">SEND</button>
   </div>
 

@@ -128,7 +128,7 @@ The following substitutions shall be applied word-by-word to captured groups bef
 ### Input Area
 
 - The text field shall accept free-form text. It is a multi-line `<textarea>` that starts at one line.
-- The field shall grow one line at a time as the text wraps or the user adds lines, up to a maximum of **4 lines**; beyond that it scrolls inside itself. The chat window shrinks to make room, stays scrollable, and stays pinned to the latest message if it was already there.
+- The field shall grow one line at a time as the text wraps or the user adds lines, up to a maximum of **4 lines**; beyond that it scrolls inside itself, with older lines scrolling off the top. The border and padding sit on a frame (`#input-box`) around the text area, so the padding above and below the text stays the same while it scrolls; clicking the frame's padding puts the cursor in the field. The chat window shrinks to make room, stays scrollable, and stays pinned to the latest message if it was already there.
 - Pressing **Enter** or clicking the **Send** button shall submit the current input. **Shift+Enter** inserts a new line instead (and Enter is ignored while an input method is composing text). Line breaks the user typed are kept in the displayed message.
 - The input field shall be cleared after submission and shall shrink back to one line.
 - The input field shall receive focus on page load.
@@ -207,7 +207,7 @@ A deploy job runs automatically after tests pass on `main`. It runs on a self-ho
 | Response cycling | 3 | Different reply on repeated input, full 4-response cycle wrap, fallback list cycling |
 | Edge cases | 10 | `<script>` XSS, HTML `<b>` injection, 500-character input, all-caps input, punctuation-only input, rapid-fire messages, numeric input, ampersand escaping |
 | Additional edge cases | 8 | Emoji / Unicode, `<`/`>` without tags, backtick injection, single/double quotes, embedded newlines, leading/trailing whitespace trim, `null` literal, `undefined` literal |
-| Auto-growing input (`tests/autogrow.spec.js`) | 5 | One line at rest; grows a line at a time to 4 then scrolls inside; long text wraps and grows; Enter sends and the box shrinks back; Shift+Enter adds a line; chat window shrinks but stays scrollable |
+| Auto-growing input (`tests/autogrow.spec.js`) | 7 | One line at rest; grows a line at a time to 4 then scrolls inside; long text wraps and grows; Enter sends and the box shrinks back; Shift+Enter adds a line; chat window shrinks but stays scrollable; padding around the text unchanged while it scrolls; clicking the frame's padding focuses the field |
 | Last-updated footer | 9 | Hidden with no or invalid timestamp, Eastern time in summer (EDT) and winter (EST), ISO timestamp with UTC offset, centred small type below the input, no overlap with the input or Send button on a phone-sized screen, script tags keep the form deploy.sh stamps, chatting still works |
 
 ### Edge Case Coverage

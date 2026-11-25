@@ -72,4 +72,28 @@ test.describe("auto-growing input", () => {
     expect(after).toBeGreaterThan(100);
     expect(await chat.evaluate((el) => getComputedStyle(el).overflowY)).toBe("auto");
   });
+
+  test("the padding around the text stays the same when the text scrolls (frame vs text area)", async ({ page }) => {
+    await load(page);
+    const gap = () => page.evaluate(() => {
+      const f = document.getElementById("input-box").getBoundingClientRect();
+      const t = document.getElementById("user-input").getBoundingClientRect();
+      return { top: Math.round(t.top - f.top), bottom: Math.round(f.bottom - t.bottom) };
+    });
+    const rest = await gap();
+    expect(rest.top).toBeGreaterThanOrEqual(10);
+    expect(rest.bottom).toBeGreaterThanOrEqual(10);
+    await page.locator("#user-input").fill(Array.from({ length: 9 }, (_, i) => "line " + (i + 1)).join("\n"));
+    expect(await gap()).toEqual(rest);            // 9 lines: box capped at 4, text scrolling inside
+    // the caret line (the last one) is fully visible above the bottom padding
+    const visible = await page.locator("#user-input").evaluate((el) => el.scrollTop + el.clientHeight >= el.scrollHeight - 1);
+    expect(visible).toBe(true);
+  });
+
+  test("clicking the padding of the frame puts the cursor in the box", async ({ page }) => {
+    await load(page);
+    await page.locator("#chat-window").click();   // move focus away
+    await page.locator("#input-box").click({ position: { x: 3, y: 3 } });
+    await expect(page.locator("#user-input")).toBeFocused();
+  });
 });
