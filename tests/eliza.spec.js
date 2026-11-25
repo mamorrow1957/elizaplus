@@ -841,7 +841,7 @@ test.describe("Fine print", () => {
     await expect(fine).toContainText("sent to an AI model on a private home server");
     await expect(fine).toContainText("Joseph Weizenbaum");
     await expect(fine.getByRole("link", { name: "MIT license" })).toHaveAttribute("href", /\/blob\/main\/LICENSE$/);
-    await expect(fine.getByRole("link", { name: "source on GitHub" })).toHaveAttribute("href", "https://github.com/mamorrow1957/eliza");
+    await expect(fine.getByRole("link", { name: "source on GitHub" })).toHaveAttribute("href", "https://github.com/mamorrow1957/elizaplus");
   });
 
   test("fine print links open in a new tab without leaking the opener", async ({ page }) => {

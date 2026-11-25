@@ -488,6 +488,7 @@ function handleSend() {
 
   addMessage("YOU", text, "user");
   userInput.value = "";
+  autosizeInput();
 
   if (plusMode) { elizaplusRespond(text); return; }
 
@@ -498,9 +499,34 @@ function handleSend() {
   }, 350 + Math.random() * 300);
 }
 
+// Auto-growing input: one line at rest, grows a line at a time to INPUT_MAX_LINES, then scrolls inside the
+// box. The chat window shrinks to make room (it is a flex child), so we keep it pinned to the bottom if it
+// was already there. Shrinks back to one line when the box is emptied (after sending).
+const INPUT_MAX_LINES = 4;
+function autosizeInput() {
+  const cs = getComputedStyle(userInput);
+  const lineH = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.4;
+  const pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+  const border = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+  const atBottom = chatWindow.scrollHeight - chatWindow.scrollTop - chatWindow.clientHeight < 40;
+  userInput.style.height = "auto";                        // measure the natural height
+  const maxH = lineH * INPUT_MAX_LINES + pad + border;
+  const wantH = userInput.scrollHeight + border;
+  userInput.style.height = Math.min(wantH, maxH) + "px";
+  userInput.style.overflowY = wantH > maxH + 1 ? "auto" : "hidden";
+  if (atBottom) chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+userInput.addEventListener("input", autosizeInput);
+window.addEventListener("resize", autosizeInput);
+autosizeInput();
+
 sendBtn.addEventListener("click", handleSend);
 userInput.addEventListener("keydown", e => {
-  if (e.key === "Enter") handleSend();
+  // Enter sends (as before); Shift+Enter adds a new line. Ignore Enter while an IME is composing.
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+    e.preventDefault();
+    handleSend();
+  }
 });
 
 // ── Inner voice (elizaplus) ──────────────────────────────────────────────────────────────────

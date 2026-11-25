@@ -5,6 +5,7 @@ A browser version of Joseph Weizenbaum's 1966 ELIZA (the DOCTOR script) with an 
 - **ELIZA** answers with the classic pattern-matching script (based on the original DOCTOR script; see `NOTICE.md`).
 - **Inner voice** (on by default): a second, private thought line shown beside each reply, written by a local model.
 - **Elizaplus** (header switch): the model answers instead of the script. Replies stream in and are typed out at a selectable pace (slow / normal / fast). Crisis wording is never sent to the model; it gets a fixed reply pointing to the 988 Suicide & Crisis Lifeline.
+- **Input box**: one line at rest, it grows a line at a time as you type or wrap (up to 4 lines, then it scrolls inside itself) and shrinks back after you send. **Enter** sends, **Shift+Enter** starts a new line.
 
 ELIZA is a program, not a therapist, and Elizaplus is a language model that can be wrong. Do not rely on either for advice.
 

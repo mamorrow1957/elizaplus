@@ -149,6 +149,7 @@
 
     .message.user .speaker { color: #aaffaa; }
     .message.user .text {
+      white-space: pre-wrap; /* keep line breaks typed with Shift+Enter */
       border-color: #aaffaa;
       color: #aaffaa;
     }
@@ -160,6 +161,7 @@
       gap: 10px;
       padding: 10px 0 20px;
       border-top: 1px solid #228822;
+      align-items: flex-end; /* SEND stays level with the bottom line while the box grows */
     }
 
     #user-input {
@@ -172,6 +174,12 @@
       padding: 10px 12px;
       outline: none;
       caret-color: #33ff33;
+      /* Auto-growing box: one line at rest, up to 4 lines, then it scrolls inside itself.
+         Height is set from eliza.js (autosizeInput); resize handle off, wrapping on. */
+      resize: none;
+      line-height: 1.4;
+      overflow-y: hidden;
+      display: block;
     }
 
     #user-input::placeholder { color: #1a6b1a; }
@@ -248,7 +256,7 @@
   <div id="chat-window"></div>
 
   <div id="input-area">
-    <input id="user-input" type="text" placeholder="Tell me what's on your mind..." autocomplete="off" />
+    <textarea id="user-input" rows="1" enterkeyhint="send" placeholder="Tell me what's on your mind..." autocomplete="off" spellcheck="false"></textarea>
     <button id="send-btn">SEND</button>
   </div>
 
@@ -257,8 +265,8 @@
   <footer id="fine-print">
     <p>ELIZA is a program, not a therapist. With the inner voice on, or Elizaplus answering, your messages are sent to an AI model on a private home server; this site does not keep them.</p>
     <p>A reimplementation of Joseph Weizenbaum's 1966 ELIZA &middot;
-      <a href="https://github.com/mamorrow1957/eliza" target="_blank" rel="noopener noreferrer">source on GitHub</a> &middot;
-      <a href="https://github.com/mamorrow1957/eliza/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT license</a></p>
+      <a href="https://github.com/mamorrow1957/elizaplus" target="_blank" rel="noopener noreferrer">source on GitHub</a> &middot;
+      <a href="https://github.com/mamorrow1957/elizaplus/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT license</a></p>
   </footer>
 
   <!-- last-updated.js is written by scripts/deploy.sh; it is absent in local runs and the footer stays hidden -->
