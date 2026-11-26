@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>elizaplus: a 1966 chatbot with a modern inner voice</title>
+<meta name="description" content="elizaplus keeps the classic 1966 ELIZA rules and adds an inner voice and optional AI replies from a local model. A hobby project by Michael Morrow.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <header>
+    <h1>ELIZA<span class="plus">Plus</span></h1>
+    <p class="tagline">A 1966 chatbot with a modern inner voice</p>
+    <p class="buttons">
+      <a class="button primary" href="https://app.elizaplus.org/">Log in</a>
+      <a class="button" href="https://github.com/mamorrow1957/elizaplus">Get the code</a>
+    </p>
+  </header>
+
+  <section>
+    <p>ELIZA was a famous 1966 program that talked like a therapist by rephrasing what you said. elizaplus keeps the classic rules and adds two things a local AI model can do: a private &ldquo;inner voice&rdquo; that shows what a thoughtful listener might be thinking, and an optional switch that lets the AI answer instead of the old rules.</p>
+  </section>
+
+  <section class="feature">
+    <h2>1. Classic mode</h2>
+    <p>The original DOCTOR rules, typed out at a human pace.</p>
+  </section>
+
+  <section class="feature">
+    <h2>2. Inner voice</h2>
+    <p>Thoughts appear under each exchange. The inner voice is always on at the start and never changes the reply.</p>
+    <img src="img/classic-inner-voice.png" width="900" height="720" alt="A chat in the green terminal style. ELIZA answers 'Did you come to me because you are worried about your job?' and a dimmed italic inner voice note appears below the reply.">
+  </section>
+
+  <section class="feature">
+    <h2>3. Elizaplus replies</h2>
+    <p>One switch hands the answers to a local AI model. Words about self-harm get a fixed, safe reply with the 988 number.</p>
+    <img src="img/elizaplus-replies.png" width="900" height="720" alt="The same chat with the responder switch set to Elizaplus. An AI-written reply asks what part of the worry feels heaviest.">
+  </section>
+
+  <section class="feature">
+    <h2>Made to type in</h2>
+    <p>The input box grows a line at a time as you write, up to four lines, then scrolls inside. It works on a phone too.</p>
+    <div class="pair">
+      <img src="img/growing-input.png" width="900" height="720" alt="The input box showing four lines of text, with the send button beside it.">
+      <img class="phone" src="img/phone.png" width="390" height="780" alt="The chat on a phone-sized screen.">
+    </div>
+  </section>
+
+  <section class="notes">
+    <h2>Honest notes</h2>
+    <ul>
+      <li>It is a hobby project and an experiment: not therapy, not advice.</li>
+      <li>It runs on a private home server. The AI model runs locally, not in a cloud service.</li>
+      <li>Conversations are not saved on the server.</li>
+    </ul>
+    <p class="small">The screenshots above show sample conversations written for this page.</p>
+  </section>
+
+  <section>
+    <h2>Access</h2>
+    <p>Invite-only for now. If you have an account, <a href="https://app.elizaplus.org/">log in</a>. Everyone else: the code is free (MIT license) and runs anywhere, so you can <a href="https://github.com/mamorrow1957/elizaplus">run your own copy from GitHub</a>.</p>
+  </section>
+
+  <footer>
+    <p>A hobby project by Michael Morrow &middot; <a href="https://github.com/mamorrow1957/elizaplus">source on GitHub</a> &middot; MIT license</p>
+    <p class="small">A reimplementation of Joseph Weizenbaum&rsquo;s 1966 ELIZA.</p>
+  </footer>
+</main>
+</body>
+</html>

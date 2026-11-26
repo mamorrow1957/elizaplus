@@ -4,6 +4,7 @@
   "description": "Browser-based ELIZA (DOCTOR script) with an optional local-LLM inner voice and responder",
   "scripts": {
     "test": "playwright test",
+    "test:guard": "node --test guard/guard.test.js",
     "smoke": "playwright test tests/live-smoke.spec.js"
   },
   "repository": {

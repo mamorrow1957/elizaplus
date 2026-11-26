@@ -1,0 +1,25 @@
+# systemd unit for the elizaplus guard (docs/reference; installed once by scripts/setup-guard-host.sh).
+# Copy to /etc/systemd/system/elizaplus-guard.service. Settings (model, upstream) live in /etc/elizaplus-guard.env.
+[Unit]
+Description=elizaplus guard (validating proxy in front of the model server)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/bin/node /opt/elizaplus-guard/guard.js
+EnvironmentFile=/etc/elizaplus-guard.env
+Restart=on-failure
+RestartSec=3
+DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+MemoryMax=300M
+
+[Install]
+WantedBy=multi-user.target

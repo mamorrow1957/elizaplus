@@ -21,7 +21,13 @@ npx http-server . -p 8080
 
 For the inner voice and Elizaplus the page POSTs OpenAI-style chat requests (`/v1/chat/completions` format, streaming supported) to **`/api/chat` on its own origin**. Point that path at any compatible server, for example [LM Studio](https://lmstudio.ai/) or llama.cpp's server. `deploy/nginx-elizaplus.conf` is a reference nginx setup: POST only, 8 KB body limit, rate limit, short timeouts, no buffering. The model name is set in `eliza.js` (`INNER_VOICE.model`, currently `google/gemma-4-26b-a4b-qat`, run with reasoning off); change it to whatever your server has loaded. If `/api/chat` is missing (404/405) the page falls back to plain ELIZA and hides the switches.
 
+**Sites with accounts (optional guard).** `guard/guard.js` is a small dependency-free Node service you can put between nginx and the model server. It accepts only one fixed request shape (your model name, whitelisted fields, a reply-length cap), limits each signed-in user's request rate, limits how many requests the model serves at once (extras wait briefly in a queue, then get HTTP 429), and never logs message text. nginx tells it who the user is through a header that only your login proxy may set; see `deploy/nginx-elizaplus-guarded.conf`, `deploy/elizaplus-guard.service` and `deploy/elizaplus-guard.env.example`. `scripts/setup-guard-host.sh` is a one-time setup for Ubuntu (Node.js 26 LTS). Nothing in the guard is needed for a private site.
+
 Put your own security headers in front of it (the live smoke test expects `nosniff`, `X-Frame-Options: DENY`, a strict CSP with no inline scripts, and so on); the page uses only same-origin scripts.
+
+## Splash page
+
+`site/` is a separate static landing page (retro look, no scripts, no outside requests) with a description, screenshots, a Log in button and a link to this repository; serve it from its own web root. `node scripts/make-splash-screenshots.js` regenerates the screenshots from the real page with a mocked model (sample conversations written for the purpose). The deploy script never copies `site/` into the app's web root.
 
 ## Tests
 
@@ -30,6 +36,10 @@ npm ci
 npx playwright install --with-deps chromium
 npm test
 ```
+
+`ELIZAPLUS_LAUNCH_CHECK=1 npx playwright test tests/public-launch.spec.js` probes a live public deployment read-only (override the URLs with `ELIZAPLUS_SPLASH_URL`, `ELIZAPLUS_APP_URL`, `ELIZAPLUS_LOGIN_URL`).
+
+`npm run test:guard` runs the guard's unit tests (Node's built-in runner, no install needed).
 
 The suite uses Playwright with fake model endpoints, so no LLM is needed. `npm run smoke` runs a few checks against a deployed copy when you set `ELIZAPLUS_URL`.
 
