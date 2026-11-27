@@ -65,15 +65,6 @@ sudo sed -i \
 for name in eliza.js last-updated.js; do
   sudo grep -q "src=\"${name}?v=${version}\"" ${DEST}/index.html || { echo "ERROR: ${name} version stamp was not applied"; exit 1; }
 done
-# Splash page (site/): its own web root, served for the bare domain by a separate nginx server block.
-# Only published where that folder was created once by hand; on other hosts this does nothing.
-SITE_DEST=/var/www/elizaplus-site
-[ "${SITE_DEST}" = "/var/www/elizaplus-site" ] || exit 1
-if [ -d "${SRC}/site" ] && sudo test -d "${SITE_DEST}"; then
-  echo "Publishing the splash page to ${SITE_DEST}..."
-  sudo rsync -a --delete "${SRC}/site/" "${SITE_DEST}/"
-fi
-
 # Guard (validating proxy for AI requests): update only where it was installed once by scripts/setup-guard-host.sh.
 # On a host without it (the current prod) this does nothing.
 if systemctl cat elizaplus-guard.service >/dev/null 2>&1 && [ -d /opt/elizaplus-guard ]; then

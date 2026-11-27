@@ -9,7 +9,9 @@ A browser version of Joseph Weizenbaum's 1966 ELIZA (the DOCTOR script) with an 
 
 ELIZA is a program, not a therapist, and Elizaplus is a language model that can be wrong. Do not rely on either for advice.
 
-The author's hosted copy is at https://elizaplus.org (invite-only; its front page links back to this repository). The code here is what runs it.
+The author's hosted copy is at https://elizaplus.org (invite-only).
+
+This repository holds the chat page and the optional guard for the AI endpoint. The author's hosted site also has a splash page and user management (invitations and sign-in through an identity provider); those parts are not included here. The code here is what runs it.
 
 Nothing is stored in the browser. With the inner voice or Elizaplus on, messages go to the model behind your proxy; run it somewhere you trust.
 
@@ -32,20 +34,15 @@ Put your own security headers in front of it (the live smoke test expects `nosni
 The page itself needs no accounts. For a site with invited users the author puts a login layer in front and the guard behind it:
 
 ```text
-visitor -> Cloudflare -> reverse proxy with forward auth (Authentik) -> nginx -> guard -> model server
+visitor -> Cloudflare -> reverse proxy with forward auth -> nginx -> guard -> model server
                           signed-in users only                          static   /api/chat   LM Studio, llama.cpp, ...
                                                                         files
 ```
 
-- **Login layer** (not part of this repo): any reverse proxy plus an identity provider. The proxy tells nginx who is signed in through a header (`X-Auth-User`) that only the proxy may set; `deploy/nginx-elizaplus-guarded.conf` shows how nginx enforces that. `deploy/authentik/` holds the author's green-and-black Authentik branding as a reference.
+- **Login layer** (not part of this repo): any reverse proxy plus an identity provider. The proxy tells nginx who is signed in through a header (`X-Auth-User`) that only the proxy may set; `deploy/nginx-elizaplus-guarded.conf` shows how nginx enforces that.
 - **nginx** serves the static files and forwards only `POST /api/chat`, to the guard on loopback.
 - **Guard** (`guard/`): fixed request shape, reply-length cap, per-user rate limit, limited concurrency, and no message text in its logs.
-- **Splash page** (`site/`): a separate static front page for the bare domain, with its own nginx site (`deploy/nginx-elizaplus-splash.conf`).
 - **Private use needs none of this:** a LAN-only site can use `deploy/nginx-elizaplus.conf` and no guard.
-
-## Splash page
-
-`site/` is a separate static landing page (retro look, no scripts, no outside requests) with a description, screenshots, a Log in button and a link to this repository; serve it from its own web root. `node scripts/make-splash-screenshots.js` regenerates the screenshots from the real page with a mocked model (sample conversations written for the purpose). The deploy script never copies `site/` into the app's web root.
 
 ## Tests
 
@@ -55,13 +52,11 @@ npx playwright install --with-deps chromium
 npm test
 ```
 
-`ELIZAPLUS_LAUNCH_CHECK=1 npx playwright test tests/public-launch.spec.js` probes a live public deployment read-only (override the URLs with `ELIZAPLUS_SPLASH_URL`, `ELIZAPLUS_APP_URL`, `ELIZAPLUS_LOGIN_URL`).
-
 `npm run test:guard` runs the guard's unit tests (Node's built-in runner, no install needed).
 
 The suite uses Playwright with fake model endpoints, so no LLM is needed. `npm run smoke` runs a few checks against a deployed copy when you set `ELIZAPLUS_URL`.
 
-`.gitlab-ci.yml` and `scripts/deploy.sh` are the author's own pipeline (test on every push; on `main`, rsync the app to its web root, `site/` to the splash page's own web root, and refresh the guard where it is installed); adapt or ignore them.
+`.gitlab-ci.yml` and `scripts/deploy.sh` are the author's own pipeline (test on every push; on `main`, rsync the app to its web root and refresh the guard where it is installed); adapt or ignore them.
 
 ## Credits and license
 
